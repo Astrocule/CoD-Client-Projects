@@ -4,7 +4,7 @@ Tools and alike for clients on PC regarding "Call of Duty". Plutonium, Alterware
 [Plutonium Projects](https://github.com/Astrocule/CoD-Client-Projects/tree/main/Plutonium)
 
 
-If you would like a new client or Linux distrubtion to be supported, please make a request in the issues tab. I am updating this repo as I go along, things may move or change.
+If you would like a new client or Linux distribution to be supported, please make a request in the issues tab. I am updating this repo as I go along, things may move or change.
 
 TBA:
 * Launcher for all clients in one (Linux/Handheld devices)
