@@ -96,6 +96,7 @@ flatpak install flathub com.heroicgameslauncher.hgl
 - **Better Feedback**: Color-coded output with clear status indicators
 
 ### Distribution-Specific Enhancements
+- **Automatic Distro Detection**: Detects Linnux distro, installs appropriate packages (Wine) and 32-bit libraries
 - **Debian**: Automatic contrib repository detection and enabling
 - **Arch**: Interactive multilib configuration with editor support
 - **All Distros**: Improved package installation with fallback options
@@ -105,18 +106,8 @@ flatpak install flathub com.heroicgameslauncher.hgl
 - **Error Handling**: Graceful error recovery with helpful messages
 - **Skip Options**: Can skip non-critical installation steps
 - **Progress Indicators**: Clear indication of long-running operations
+- **Dedicated Wine Prefix**: Sets up dedicated Wine prefix
 
-
-# Features
-
-### Automatic Detection & Installation
-- Detects Linux distribution automatically
-- Installs appropriate Wine version
-- Configures all required 32-bit libraries
-- Sets up dedicated Wine prefix
-
-### Sudo Privilege Verification
-The script checks if your user has sudo privileges and provides instructions if not:
 
 
 ### Comprehensive Logging
