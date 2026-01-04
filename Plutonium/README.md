@@ -25,7 +25,7 @@
 ## Quick Start
 
 ### Download and Run
-Install the plutonium_installer.sh script from the github release page
+Install the plutonium_installer.sh script from the [github repository](https://github.com/Astrocule/CoD-Client-Projects/blob/main/Plutonium/plutonium_install.sh) (Download arrow, top right)
 ```bash
 # Make it executable
 chmod +x plutonium_install.sh
