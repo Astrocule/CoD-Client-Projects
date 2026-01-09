@@ -26,13 +26,13 @@ log() {
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] $1" >> "$LOG_FILE"
 }
 
-log_error() {
+log_Error() {
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$ERROR_LOG"
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$LOG_FILE"
 }
 
 # Functions
-print_header() {
+print_Header() {
     local message="$1"
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}$message${NC}"
@@ -40,38 +40,38 @@ print_header() {
     log "HEADER: $message"
 }
 
-print_success() {
+print_Success() {
     echo -e "${GREEN}✓ $1${NC}"
     log "SUCCESS: $1"
 }
 
-print_error() {
+print_Error() {
     echo -e "${RED}✗ $1${NC}"
-    log_error "$1"
+    log_Error "$1"
 }
 
-print_warning() {
+print_Warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
     log "WARNING: $1"
 }
 
-print_info() {
+print_Info() {
     echo -e "${BLUE}ℹ $1${NC}"
     log "INFO: $1"
 }
 
-print_step() {
+print_Step() {
     echo -e "${CYAN}➜ $1${NC}"
     log "STEP: $1"
 }
 
 # Prompt user for confirmation
-prompt_continue() {
+prompt_Continue() {
     local message="$1"
     local default="${2:-N}"
     
     echo ""
-    print_step "$message"
+    print_Step "$message"
     
     if [ "$default" = "Y" ]; then
         read -p "Continue? (Y/n): " -n 1 -r
@@ -89,43 +89,43 @@ prompt_continue() {
 }
 
 # Check if user is in sudoers
-check_sudo() {
-    print_header "Checking sudo privileges"
+check_Sudo() {
+    print_Header "Checking sudo privileges"
     
     if sudo -n true 2>/dev/null; then
-        print_success "Sudo privileges confirmed"
+        print_Success "Sudo privileges confirmed"
         log "User has sudo privileges"
         return 0
     fi
     
     # Try with password
     if sudo -v 2>/dev/null; then
-        print_success "Sudo privileges confirmed"
+        print_Success "Sudo privileges confirmed"
         log "User has sudo privileges (after password prompt)"
         return 0
     fi
     
     # User is not in sudoers
-    print_error "Current user '$USER' is not in the sudoers group!"
+    print_Error "Current user '$USER' is not in the sudoers group!"
     echo ""
-    print_warning "You need sudo privileges to install dependencies."
+    print_Warning "You need sudo privileges to install dependencies."
     echo ""
-    print_info "To add yourself to sudoers, run these commands:"
+    print_Info "To add yourself to sudoers, run these commands:"
     echo ""
     echo -e "${CYAN}su -${NC}"
     echo -e "${CYAN}sudo adduser $USER sudo${NC}"
     echo ""
-    print_info "Then restart your computer and run this script again."
+    print_Info "Then restart your computer and run this script again."
     echo ""
-    log_error "User $USER does not have sudo privileges"
+    log_Error "User $USER does not have sudo privileges"
     exit 1
 }
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-    print_error "Do not run this script as root!"
-    print_info "Run as a normal user. You will be prompted for sudo when needed."
-    log_error "Script run as root - exiting"
+    print_Error "Do not run this script as root!"
+    print_Info "Run as a normal user. You will be prompted for sudo when needed."
+    log_Error "Script run as root - exiting"
     exit 1
 fi
 
@@ -133,64 +133,66 @@ fi
 echo "Plutonium Linux Installer - Log started at $(date)" > "$LOG_FILE"
 echo "Plutonium Linux Installer - Error Log started at $(date)" > "$ERROR_LOG"
 
-print_info "Installation log: $LOG_FILE"
-print_info "Error log: $ERROR_LOG"
+print_Info "Installation log: $LOG_FILE"
+print_Info "Error log: $ERROR_LOG"
 echo ""
 
 # Detect distribution
-detect_distro() {
+detect_Distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         DISTRO=$ID
         VERSION=$VERSION_ID
         VERSION_CODENAME=${VERSION_CODENAME:-}
         UBUNTU_CODENAME=${UBUNTU_CODENAME:-}
-        print_info "Detected: $NAME $VERSION"
+        print_Info "Detected: $NAME $VERSION"
         log "Distribution detected: $NAME $VERSION (ID: $DISTRO)"
     else
-        print_error "Cannot detect distribution"
-        log_error "Failed to detect distribution - /etc/os-release not found"
+        print_Error "Cannot detect distribution"
+        log_Error "Failed to detect distribution - /etc/os-release not found"
         exit 1
     fi
 }
 
+
+
 # Enable contrib repository for Debian-based systems
-enable_debian_contrib() {
+enable_Debian_Contrib() {
     local sources_file="$1"
     
-    print_step "Checking for contrib repository..."
+    print_Step "Checking for contrib repository..."
     
     if grep -q "contrib" "$sources_file"; then
-        print_info "Contrib repository already enabled"
+        print_Info "Contrib repository already enabled"
         log "Contrib already enabled in $sources_file"
         return 0
     fi
     
-    print_warning "Contrib repository not enabled (required for winetricks)"
+    print_Warning "Contrib repository not enabled (required for winetricks)"
     
-    if prompt_continue "Enable contrib repository in $sources_file?"; then
-        print_info "Enabling contrib repository..."
+    if prompt_Continue "Enable contrib repository in $sources_file?"; then
+        print_Info "Enabling contrib repository..."
         sudo sed -r -i.backup 's/^deb(.*)$/deb\1 contrib/g' "$sources_file"
         
         if [ $? -eq 0 ]; then
-            print_success "Contrib repository enabled (backup saved as ${sources_file}.backup)"
+            print_Success "Contrib repository enabled (backup saved as ${sources_file}.backup)"
             log "Successfully enabled contrib in $sources_file"
             return 0
         else
-            print_error "Failed to enable contrib repository"
-            log_error "Failed to modify $sources_file"
+            print_Error "Failed to enable contrib repository"
+            log_Error "Failed to modify $sources_file"
             return 1
         fi
     else
-        print_warning "Skipping contrib repository - winetricks may not be available"
+        print_Warning "Skipping contrib repository - winetricks may not be available"
         log "User declined to enable contrib repository"
         return 1
     fi
 }
 
 # Install dependencies for Ubuntu
-install_ubuntu() {
-    print_header "Installing dependencies for Ubuntu"
+install_Ubuntu() {
+    print_Header "Installing dependencies for Ubuntu"
     
     # Determine codename
     if [ -n "$UBUNTU_CODENAME" ]; then
@@ -199,225 +201,225 @@ install_ubuntu() {
         CODENAME=$VERSION_CODENAME
     fi
     
-    print_info "Using Ubuntu codename: $CODENAME"
+    print_Info "Using Ubuntu codename: $CODENAME"
     log "Ubuntu codename: $CODENAME"
     
     # Enable 32-bit architecture
-    if ! prompt_continue "Enable 32-bit architecture support? (Required for Wine)"; then
-        print_error "32-bit architecture is required. Exiting."
+    if ! prompt_Continue "Enable 32-bit architecture support? (Required for Wine)"; then
+        print_Error "32-bit architecture is required. Exiting."
         exit 1
     fi
     
-    print_info "Enabling 32-bit architecture..."
+    print_Info "Enabling 32-bit architecture..."
     if sudo dpkg --add-architecture i386; then
-        print_success "32-bit architecture enabled"
+        print_Success "32-bit architecture enabled"
     else
-        print_error "Failed to enable 32-bit architecture"
+        print_Error "Failed to enable 32-bit architecture"
         exit 1
     fi
     
     # Add WineHQ repository
-    if prompt_continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
-        print_info "Adding WineHQ repository..."
+    if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
+        print_Info "Adding WineHQ repository..."
         
         sudo mkdir -pm755 /etc/apt/keyrings
         
         if wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key - 2>/dev/null; then
-            print_success "WineHQ key added"
+            print_Success "WineHQ key added"
         else
-            print_error "Failed to add WineHQ key"
-            log_error "Failed to download/add WineHQ GPG key"
+            print_Error "Failed to add WineHQ key"
+            log_Error "Failed to download/add WineHQ GPG key"
             exit 1
         fi
         
         if sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/${CODENAME}/winehq-${CODENAME}.sources 2>/dev/null; then
-            print_success "WineHQ repository added"
+            print_Success "WineHQ repository added"
         else
-            print_warning "Failed to add WineHQ repository - will try Ubuntu repos instead"
-            log_error "Failed to add WineHQ sources for $CODENAME"
+            print_Warning "Failed to add WineHQ repository - will try Ubuntu repos instead"
+            log_Error "Failed to add WineHQ sources for $CODENAME"
         fi
     fi
     
     # Update package lists
-    print_info "Updating package lists..."
+    print_Info "Updating package lists..."
     if sudo apt update 2>&1 | tee -a "$LOG_FILE"; then
-        print_success "Package lists updated"
+        print_Success "Package lists updated"
     else
-        print_warning "Some repository updates failed (non-critical)"
+        print_Warning "Some repository updates failed (non-critical)"
     fi
     
     # Install Wine
-    if prompt_continue "Install Wine Staging? (Recommended version with latest features)"; then
-        print_info "Installing Wine Staging and winetricks..."
-        print_warning "This may take several minutes..."
+    if prompt_Continue "Install Wine Staging? (Recommended version with latest features)"; then
+        print_Info "Installing Wine Staging and winetricks..."
+        print_Warning "This may take several minutes..."
         
         if sudo apt install --install-recommends winehq-staging winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Wine Staging installed"
+            print_Success "Wine Staging installed"
         else
-            print_warning "Wine Staging installation failed, trying wine package from Ubuntu repos..."
+            print_Warning "Wine Staging installation failed, trying wine package from Ubuntu repos..."
             if sudo apt install wine winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
-                print_success "Wine installed from Ubuntu repositories"
+                print_Success "Wine installed from Ubuntu repositories"
             else
-                print_error "Failed to install Wine"
+                print_Error "Failed to install Wine"
                 exit 1
             fi
         fi
     else
-        print_warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
+        print_Warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
         read -n 1 -p "Press any key to continue..."
     fi
     
-    print_success "Ubuntu dependencies installed"
+    print_Success "Ubuntu dependencies installed"
 }
 
 # Install dependencies for Debian
-install_debian() {
-    print_header "Installing dependencies for Debian"
+install_Debian() {
+    print_Header "Installing dependencies for Debian"
     
     CODENAME=$VERSION_CODENAME
-    print_info "Using Debian codename: $CODENAME"
+    print_Info "Using Debian codename: $CODENAME"
     log "Debian codename: $CODENAME"
     
     # Enable 32-bit architecture
-    if ! prompt_continue "Enable 32-bit architecture support? (Required for Wine)"; then
-        print_error "32-bit architecture is required. Exiting."
+    if ! prompt_Continue "Enable 32-bit architecture support? (Required for Wine)"; then
+        print_Error "32-bit architecture is required. Exiting."
         exit 1
     fi
     
-    print_info "Enabling 32-bit architecture..."
+    print_Info "Enabling 32-bit architecture..."
     if sudo dpkg --add-architecture i386; then
-        print_success "32-bit architecture enabled"
+        print_Success "32-bit architecture enabled"
     else
-        print_error "Failed to enable 32-bit architecture"
+        print_Error "Failed to enable 32-bit architecture"
         exit 1
     fi
     
     # Check and enable contrib repository
-    print_step "Checking for contrib repository (required for winetricks)..."
+    print_Step "Checking for contrib repository (required for winetricks)..."
     
     # Check main sources.list
     if [ -f /etc/apt/sources.list ]; then
-        enable_debian_contrib "/etc/apt/sources.list"
+        enable_Debian_Contrib "/etc/apt/sources.list"
     fi
     
     # Install prerequisites
-    if prompt_continue "Install prerequisite packages? (curl, wget, gnupg)"; then
-        print_info "Installing prerequisites..."
+    if prompt_Continue "Install prerequisite packages? (curl, wget, gnupg)"; then
+        print_Info "Installing prerequisites..."
         if sudo apt update && sudo apt install -y apt-transport-https curl gnupg wget 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Prerequisites installed"
+            print_Success "Prerequisites installed"
         else
-            print_warning "Some prerequisites failed to install (may continue)"
+            print_Warning "Some prerequisites failed to install (may continue)"
         fi
     fi
     
     # Add WineHQ repository
-    if prompt_continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
-        print_info "Adding WineHQ repository..."
+    if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
+        print_Info "Adding WineHQ repository..."
         
         sudo mkdir -pm755 /etc/apt/keyrings
         
         if wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key - 2>/dev/null; then
-            print_success "WineHQ key added"
+            print_Success "WineHQ key added"
         else
-            print_error "Failed to add WineHQ key"
+            print_Error "Failed to add WineHQ key"
             exit 1
         fi
         
         echo "deb [signed-by=/etc/apt/keyrings/winehq-archive.key] https://dl.winehq.org/wine-builds/debian/ ${CODENAME} main" | sudo tee /etc/apt/sources.list.d/winehq.list
-        print_success "WineHQ repository added"
+        print_Success "WineHQ repository added"
     fi
     
     # Update package lists
-    print_info "Updating package lists..."
+    print_Info "Updating package lists..."
     if sudo apt update 2>&1 | tee -a "$LOG_FILE"; then
-        print_success "Package lists updated"
+        print_Success "Package lists updated"
     else
-        print_warning "Some repository updates failed (non-critical)"
+        print_Warning "Some repository updates failed (non-critical)"
     fi
     
     # Install Wine
-    if prompt_continue "Install Wine Staging? (Recommended version with latest features)"; then
-        print_info "Installing Wine Staging..."
-        print_warning "This may take several minutes..."
+    if prompt_Continue "Install Wine Staging? (Recommended version with latest features)"; then
+        print_Info "Installing Wine Staging..."
+        print_Warning "This may take several minutes..."
         
         if sudo apt install --install-recommends winehq-staging wine32 libwine fonts-wine winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Wine Staging installed"
+            print_Success "Wine Staging installed"
         else
-            print_warning "Wine Staging installation failed, trying wine package from Debian repos..."
+            print_Warning "Wine Staging installation failed, trying wine package from Debian repos..."
             if sudo apt install wine wine32 winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
-                print_success "Wine installed from Debian repositories"
+                print_Success "Wine installed from Debian repositories"
             else
-                print_error "Failed to install Wine"
+                print_Error "Failed to install Wine"
                 exit 1
             fi
         fi
     else
-        print_warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
+        print_Warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
         read -n 1 -p "Press any key to continue..."
     fi
     
-    print_success "Debian dependencies installed"
+    print_Success "Debian dependencies installed"
 }
 
 # Install dependencies for Arch
-install_arch() {
-    print_header "Installing dependencies for Arch Linux"
+install_Arch() {
+    print_Header "Installing dependencies for Arch Linux"
     
     # Enable multilib
-    print_step "Checking multilib repository..."
+    print_Step "Checking multilib repository..."
     if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
-        print_warning "Multilib repository not enabled (required for 32-bit support)"
+        print_Warning "Multilib repository not enabled (required for 32-bit support)"
         echo ""
-        print_info "To enable multilib, uncomment these lines in /etc/pacman.conf:"
+        print_Info "To enable multilib, uncomment these lines in /etc/pacman.conf:"
         echo -e "${CYAN}[multilib]${NC}"
         echo -e "${CYAN}Include = /etc/pacman.d/mirrorlist${NC}"
         echo ""
         
-        if prompt_continue "Would you like to edit /etc/pacman.conf now?"; then
+        if prompt_Continue "Would you like to edit /etc/pacman.conf now?"; then
             sudo ${EDITOR:-nano} /etc/pacman.conf
             
             if grep -q "^\[multilib\]" /etc/pacman.conf; then
-                print_success "Multilib enabled"
+                print_Success "Multilib enabled"
             else
-                print_error "Multilib still not enabled. Please enable it manually and run this script again."
+                print_Error "Multilib still not enabled. Please enable it manually and run this script again."
                 exit 1
             fi
         else
-            print_error "Multilib is required. Exiting."
+            print_Error "Multilib is required. Exiting."
             exit 1
         fi
     else
-        print_success "Multilib already enabled"
+        print_Success "Multilib already enabled"
     fi
     
     # Update system
-    if prompt_continue "Update system packages? (Recommended)"; then
-        print_info "Updating system..."
+    if prompt_Continue "Update system packages? (Recommended)"; then
+        print_Info "Updating system..."
         if sudo pacman -Syu --noconfirm 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "System updated"
+            print_Success "System updated"
         else
-            print_warning "System update had some issues (may continue)"
+            print_Warning "System update had some issues (may continue)"
         fi
     fi
     
     # Install Wine
-    if prompt_continue "Install Wine and core dependencies?"; then
-        print_info "Installing Wine, wine-mono, wine-gecko, and winetricks..."
+    if prompt_Continue "Install Wine and core dependencies?"; then
+        print_Info "Installing Wine, wine-mono, wine-gecko, and winetricks..."
         if sudo pacman -S --noconfirm wine wine-mono wine-gecko winetricks 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Wine core packages installed"
+            print_Success "Wine core packages installed"
         else
-            print_error "Failed to install Wine core packages"
+            print_Error "Failed to install Wine core packages"
             exit 1
         fi
     else
-        print_warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
+        print_Warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
         read -n 1 -p "Press any key to continue..."
     fi
     
     # Install full dependencies
-    if prompt_continue "Install complete Wine dependencies? (Recommended for full compatibility)"; then
-        print_info "Installing complete dependency set..."
-        print_warning "This may take several minutes..."
+    if prompt_Continue "Install complete Wine dependencies? (Recommended for full compatibility)"; then
+        print_Info "Installing complete dependency set..."
+        print_Warning "This may take several minutes..."
         
         if sudo pacman -S --noconfirm --needed \
             giflib lib32-giflib libpng lib32-libpng libldap lib32-libldap \
@@ -431,79 +433,79 @@ install_arch() {
             vulkan-icd-loader lib32-vulkan-icd-loader gst-plugins-bad \
             gst-plugins-base gst-plugins-good gst-plugins-ugly sdl2 \
             lib32-gst-plugins-good lib32-gst-plugins-base lib32-gstreamer 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Complete dependencies installed"
+            print_Success "Complete dependencies installed"
         else
-            print_warning "Some dependencies failed to install (may not be critical)"
+            print_Warning "Some dependencies failed to install (may not be critical)"
         fi
     fi
     
     # Install DXVK
     if command -v yay &> /dev/null || command -v paru &> /dev/null; then
-        if prompt_continue "Install DXVK from AUR? (Recommended for better performance)"; then
+        if prompt_Continue "Install DXVK from AUR? (Recommended for better performance)"; then
             if command -v yay &> /dev/null; then
-                print_info "Installing DXVK with yay..."
+                print_Info "Installing DXVK with yay..."
                 yay -S --noconfirm dxvk-bin 2>&1 | tee -a "$LOG_FILE"
             elif command -v paru &> /dev/null; then
-                print_info "Installing DXVK with paru..."
+                print_Info "Installing DXVK with paru..."
                 paru -S --noconfirm dxvk-bin 2>&1 | tee -a "$LOG_FILE"
             fi
-            print_success "DXVK installed"
+            print_Success "DXVK installed"
         fi
     else
-        print_warning "No AUR helper (yay/paru) found - DXVK not installed"
-        print_info "Install an AUR helper and run: yay -S dxvk-bin"
+        print_Warning "No AUR helper (yay/paru) found - DXVK not installed"
+        print_Info "Install an AUR helper and run: yay -S dxvk-bin"
     fi
     
-    print_success "Arch Linux dependencies installed"
+    print_Success "Arch Linux dependencies installed"
 }
 
 # Install dependencies for Fedora
-install_fedora() {
-    print_header "Installing dependencies for Fedora"
+install_Fedora() {
+    print_Header "Installing dependencies for Fedora"
     
     # Check if Nobara
     if [ -f /usr/bin/nobara-sync ]; then
-        print_info "Nobara Linux detected"
+        print_Info "Nobara Linux detected"
         
-        if prompt_continue "Update system with nobara-sync?"; then
-            print_info "Running nobara-sync..."
+        if prompt_Continue "Update system with nobara-sync?"; then
+            print_Info "Running nobara-sync..."
             if sudo nobara-sync 2>&1 | tee -a "$LOG_FILE"; then
-                print_success "System updated"
+                print_Success "System updated"
             else
-                print_warning "System update had issues (may continue)"
+                print_Warning "System update had issues (may continue)"
             fi
         fi
     else
-        if prompt_continue "Update system packages? (Recommended)"; then
-            print_info "Updating system..."
+        if prompt_Continue "Update system packages? (Recommended)"; then
+            print_Info "Updating system..."
             if sudo dnf upgrade -y 2>&1 | tee -a "$LOG_FILE"; then
-                print_success "System updated"
+                print_Success "System updated"
             else
-                print_warning "System update had issues (may continue)"
+                print_Warning "System update had issues (may continue)"
             fi
         fi
     fi
     
     # Install Wine
-    if prompt_continue "Install Wine and winetricks?"; then
-        print_info "Installing Wine and dependencies..."
-        print_warning "This may take several minutes..."
+    if prompt_Continue "Install Wine and winetricks?"; then
+        print_Info "Installing Wine and dependencies..."
+        print_Warning "This may take several minutes..."
         
         if sudo dnf install -y wine winetricks 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Wine installed"
+            print_Success "Wine installed"
         else
-            print_error "Failed to install Wine"
+            print_Error "Failed to install Wine"
             exit 1
         fi
     else
-        print_warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
+        print_Warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
         read -n 1 -p "Press any key to continue..."
     fi
     
     # Install additional dependencies
-    if prompt_continue "Install additional 32-bit dependencies? (Recommended for compatibility)"; then
-        print_info "Installing 32-bit dependencies..."
-        print_warning "Some packages may not be available - this is normal"
+    if prompt_Continue "Install additional 32-bit dependencies? (Recommended for compatibility)"; then
+        print_Info "Installing 32-bit dependencies..."
+        print_Warning "Some packages may not be available - this is normal"
         
         sudo dnf install -y --skip-unavailable alsa-plugins-pulseaudio.i686 glibc-devel.i686 glibc-devel \
             libgcc.i686 libX11-devel.i686 freetype-devel.i686 libXcursor-devel.i686 \
@@ -514,145 +516,145 @@ install_fedora() {
             libv4l-devel.i686 libgphoto2-devel.i686 cups-devel.i686 \
             libxml2-devel.i686 openldap-devel.i686 libxslt-devel.i686 \
             gnutls-devel.i686 libpng-devel.i686 mesa-vulkan-drivers \
-            vulkan-loader 2>&1 | tee -a "$LOG_FILE" || print_warning "Some optional dependencies failed (non-critical)"
+            vulkan-loader 2>&1 | tee -a "$LOG_FILE" || print_Warning "Some optional dependencies failed (non-critical)"
         
-        print_success "Additional dependencies installed"
+        print_Success "Additional dependencies installed"
     fi
     
-    print_success "Fedora dependencies installed"
+    print_Success "Fedora dependencies installed"
 }
 
 # Install dependencies for Solus
-install_solus() {
-    print_header "Installing dependencies for Solus"
+install_Solus() {
+    print_Header "Installing dependencies for Solus"
     
     # Update repository
-    if prompt_continue "Update repository database?"; then
-        print_info "Updating repository..."
+    if prompt_Continue "Update repository database?"; then
+        print_Info "Updating repository..."
         if sudo eopkg update-repo 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Repository updated"
+            print_Success "Repository updated"
         else
-            print_warning "Repository update had issues (may continue)"
+            print_Warning "Repository update had issues (may continue)"
         fi
     fi
 
     # Update System
-    if prompt_continue "Update your system?"; then
-        print_info "Updating System..."
-        sudo eopkg upgrade 2>&1 | tee -a "$LOG_FILE" || print_warning "Some upgrades may have failed (non-critical)"
+    if prompt_Continue "Update your system?"; then
+        print_Info "Updating System..."
+        sudo eopkg upgrade 2>&1 | tee -a "$LOG_FILE" || print_Warning "Some upgrades may have failed (non-critical)"
         
-        print_success "System updated, continuing..."
+        print_Success "System updated, continuing..."
     fi
     
     # Install Wine
-    if prompt_continue "Install Wine with 32-bit support and accessories?"; then
-        print_info "Installing Wine packages..."
-        print_warning "This may take several minutes..."
+    if prompt_Continue "Install Wine with 32-bit support and accessories?"; then
+        print_Info "Installing Wine packages..."
+        print_Warning "This may take several minutes..."
         
         if sudo eopkg install -y wine wine-32bit wine-devel winetricks 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Wine installed"
+            print_Success "Wine installed"
         else
-            print_error "Failed to install Wine"
+            print_Error "Failed to install Wine"
             exit 1
         fi
     else
-        print_warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
+        print_Warning "Wine Installation cancelled, Plutonium will not work if wine is not installed. Rerun and install unless you know what you are doing."
         read -n 1 -p "Press any key to continue..."
     fi
     
-    print_success "Solus dependencies installed"
+    print_Success "Solus dependencies installed"
 }
 
 # Setup Wine prefix
-setup_wine_prefix() {
-    print_info "LAST STEP!!!"
-    print_header "Setting up Wine prefix"
+setup_Wine_Prefix() {
+    print_Info "LAST STEP!!!"
+    print_Header "Setting up Wine prefix"
     
     WINE_PREFIX="$HOME/wine/plutonium"
     
-    print_info "Wine prefix will be created at: $WINE_PREFIX"
+    print_Info "Wine prefix will be created at: $WINE_PREFIX"
     
-    if ! prompt_continue "Create Wine prefix and install Windows components?"; then
-        print_warning "Wine prefix setup skipped, Plutonium may have degraded performance or issues."
+    if ! prompt_Continue "Create Wine prefix and install Windows components?"; then
+        print_Warning "Wine prefix setup skipped, Plutonium may have degraded performance or issues."
         return 0
     fi
     
     # Create prefix directory
-    print_info "Creating Wine prefix directory..."
+    print_Info "Creating Wine prefix directory..."
     mkdir -p "$WINE_PREFIX"
     log "Created Wine prefix directory: $WINE_PREFIX"
     
     # Check if winetricks is available
     if ! command -v winetricks &> /dev/null; then
-        print_error "winetricks not found! Cannot continue with prefix setup."
-        print_info "Please install winetricks manually and run:"
+        print_Error "winetricks not found! Cannot continue with prefix setup."
+        print_Info "Please install winetricks manually and run:"
         echo "WINEPREFIX=$WINE_PREFIX winetricks -q --force d3dcompiler_47 d3dcompiler_43 d3dx11_42 d3dx11_43 gfw msasn1 corefonts vcrun2005 vcrun2012 vcrun2019 xact_x64 xact xinput"
-        log_error "winetricks not found - cannot setup prefix"
+        log_Error "winetricks not found - cannot setup prefix"
         exit 1
     fi
     
     # Install Windows components
-    print_step "Installing Windows components via winetricks..."
-    print_warning "This process may take 5-15 minutes depending on your internet connection"
-    print_warning "You may see error dialogs or windows - this is normal"
-    print_info "Do not close any windows that appear - they will close automatically"
+    print_Step "Installing Windows components via winetricks..."
+    print_Warning "This process may take 5-15 minutes depending on your internet connection"
+    print_Warning "You may see error dialogs or windows - this is normal"
+    print_Info "Do not close any windows that appear - they will close automatically"
     echo ""
     
-    if ! prompt_continue "Begin Windows component installation?" "Y"; then
-        print_warning "Windows components installation skipped"
+    if ! prompt_Continue "Begin Windows component installation?" "Y"; then
+        print_Warning "Windows components installation skipped"
         log "User skipped Windows components installation"
     else
-        print_info "Installing: DirectX components, Visual C++ runtimes, fonts, audio, and input support..."
+        print_Info "Installing: DirectX components, Visual C++ runtimes, fonts, audio, and input support..."
         
         if WINEPREFIX="$WINE_PREFIX" winetricks -q --force \
             d3dcompiler_47 d3dcompiler_43 \
             d3dx11_42 d3dx11_43 gfw msasn1 \
             corefonts vcrun2005 vcrun2012 vcrun2019 \
             xact_x64 xact xinput 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Windows components installed successfully"
+            print_Success "Windows components installed successfully"
         else
-            print_warning "Some components may have failed to install"
-            print_info "You can retry individual components with:"
+            print_Warning "Some components may have failed to install"
+            print_Info "You can retry individual components with:"
             echo "WINEPREFIX=$WINE_PREFIX winetricks [component_name]"
-            log_error "Some winetricks components failed"
+            log_Error "Some winetricks components failed"
         fi
     fi
     
     # Setup DXVK if available
     if command -v setup_dxvk &> /dev/null; then
-        if prompt_continue "Install DXVK (Vulkan-based DirectX)? (Recommended for performance)"; then
-            print_info "Installing DXVK..."
+        if prompt_Continue "Install DXVK (Vulkan-based DirectX)? (Recommended for performance)"; then
+            print_Info "Installing DXVK..."
             if WINEPREFIX="$WINE_PREFIX" setup_dxvk install 2>&1 | tee -a "$LOG_FILE"; then
-                print_success "DXVK installed"
+                print_Success "DXVK installed"
             else
-                print_warning "DXVK setup failed (non-critical - Heroic can handle this)"
-                log_error "DXVK setup failed"
+                print_Warning "DXVK setup failed (non-critical - Heroic can handle this)"
+                log_Error "DXVK setup failed"
             fi
         fi
     else
-        print_info "DXVK setup command not available (Heroic Launcher will handle this automatically)"
+        print_Info "DXVK setup command not available (Heroic Launcher will handle this automatically)"
         log "setup_dxvk not available"
     fi
     
     # Set Windows version
-    if prompt_continue "Configure Wine prefix for Windows 10? (Recommended)" "Y"; then
-        print_info "Configuring Windows version to Windows 10..."
+    if prompt_Continue "Configure Wine prefix for Windows 10? (Recommended)" "Y"; then
+        print_Info "Configuring Windows version to Windows 10..."
         if WINEPREFIX="$WINE_PREFIX" winecfg -v win10 2>&1 | tee -a "$LOG_FILE"; then
-            print_success "Windows 10 configuration applied"
+            print_Success "Windows 10 configuration applied"
         else
-            print_warning "Failed to set Windows version automatically"
-            print_info "You can set it manually by running: WINEPREFIX=$WINE_PREFIX winecfg"
+            print_Warning "Failed to set Windows version automatically"
+            print_Info "You can set it manually by running: WINEPREFIX=$WINE_PREFIX winecfg"
         fi
     fi
     
-    print_success "Wine prefix setup complete!"
+    print_Success "Wine prefix setup complete!"
     log "Wine prefix setup completed successfully"
 }
 
 # Display installation summary
-show_summary() {
+show_Summary() {
     echo ""
-    print_header "Installation Summary"
+    print_Header "Installation Summary"
     
     echo ""
     echo "Wine prefix location: $HOME/wine/plutonium"
@@ -665,7 +667,7 @@ show_summary() {
     echo "Error log: $ERROR_LOG"
     echo ""
     
-    print_info "Next Steps:"
+    print_Info "Next Steps:"
     echo ""
     echo "1. Download Plutonium launcher from: https://plutonium.pw/"
     echo "   Place plutonium.exe in: $HOME/wine/plutonium/"
@@ -688,104 +690,104 @@ show_summary() {
 }
 
 # Error handler
-handle_error() {
+handle_Error() {
     local exit_code=$?
     local line_number=$1
     
     echo ""
-    print_error "An error occurred on line $line_number (exit code: $exit_code)"
-    log_error "Script error on line $line_number with exit code $exit_code"
+    print_Error "An error occurred on line $line_number (exit code: $exit_code)"
+    log_Error "Script error on line $line_number with exit code $exit_code"
     
     echo ""
-    print_info "Check the error log for details: $ERROR_LOG"
+    print_Info "Check the error log for details: $ERROR_LOG"
     echo ""
     
     exit $exit_code
 }
 
 # Set error trap
-trap 'handle_error $LINENO' ERR
+trap 'handle_Error $LINENO' ERR
 
 # Main installation flow
 main() {
-    print_header "Plutonium Linux Automated Installer v1.0"
+    print_Header "Plutonium Linux Automated Installer v1.0"
     echo ""
-    print_info "This script will:"
+    print_Info "This script will:"
     echo "  • Detect your Linux distribution"
     echo "  • Install Wine and required dependencies"
     echo "  • Create a Wine prefix for Plutonium"
     echo "  • Install Windows components via winetricks"
     echo ""
-    print_warning "Installation requires sudo privileges"
-    print_warning "This script DOES NOT currently support the steam deck"
-    print_warning "Accept any prompts from Wine to ensure compatibility with Plutonium"
-    print_info "You will be prompted before each major step"
+    print_Warning "Installation requires sudo privileges"
+    print_Warning "This script DOES NOT currently support the steam deck"
+    print_Warning "Accept any prompts from Wine to ensure compatibility with Plutonium"
+    print_Info "You will be prompted before each major step"
     echo ""
     
-    if ! prompt_continue "Start installation?"; then
-        print_info "Installation cancelled by user"
+    if ! prompt_Continue "Start installation?"; then
+        print_Info "Installation cancelled by user"
         log "Installation cancelled by user at start"
         exit 0
     fi
     
     # Check sudo privileges
-    check_sudo
+    check_Sudo
     
     # Detect distribution
     echo ""
-    detect_distro
+    detect_Distro
     
     # Install based on distribution
     echo ""
     case $DISTRO in
         ubuntu)
-            install_ubuntu
+            install_Ubuntu
             ;;
         debian)
-            install_debian
+            install_Debian
             ;;
         arch|manjaro|endeavouros|cachyos)
-            install_arch
+            install_Arch
             ;;
         fedora|nobara)
-            install_fedora
+            install_Fedora
             ;;
         solus)
-            install_solus
+            install_Solus
             ;;
         *)
-            print_error "Unsupported distribution: $DISTRO"
-            print_info "Supported distributions:"
+            print_Error "Unsupported distribution: $DISTRO"
+            print_Info "Supported distributions:"
             echo "  • Ubuntu"
             echo "  • Debian"
             echo "  • Arch Linux (and derivatives)"
             echo "  • Fedora (and Nobara)"
             echo "  • Solus"
-            log_error "Unsupported distribution: $DISTRO"
-            print_info "If you would like your distro to be supported, please make an issue request on Github @ Astrocule"
+            log_Error "Unsupported distribution: $DISTRO"
+            print_Info "If you would like your distro to be supported, please make an issue request on Github @ Astrocule"
             exit 1
             ;;
     esac
     
     # Setup Wine prefix
     echo ""
-    setup_wine_prefix
+    setup_Wine_Prefix
     
     # Show summary
-    show_summary
+    show_Summary
     
     echo ""
-    print_success "Installation complete!"
+    print_Success "Installation complete!"
     log "Installation completed successfully"
     
     echo ""
-    print_info "If you encounter issues with the installer, check the logs:"
+    print_Info "If you encounter issues with the installer, check the logs:"
     echo "  Installation log: $LOG_FILE"
     echo "  Error log: $ERROR_LOG"
     echo ""
 
     echo ""
-    print_info "Thank you for using my installer! You can contact me on Github @ Astrocule if you have any issues, concerns, or want to check out the source code and provide feedback!"
+    print_Info "Thank you for using my installer! You can contact me on Github @ Astrocule if you have any issues, concerns, or want to check out the source code and provide feedback!"
     echo ""
 }
 # Run main function
