@@ -965,7 +965,7 @@ main()
     if check_Immutable_System; then
         # Immutable system detected - skip Wine installation
         case $DISTRO in
-            steamos|bazzite)
+            steamos|bazzite|cachyos-handheld)
                 install_Immutable 
                 ;;
             *)
