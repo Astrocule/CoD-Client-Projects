@@ -22,17 +22,20 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Logging function
-log() {
+log() 
+{
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] $1" >> "$LOG_FILE"
 }
 
-log_Error() {
+log_Error() 
+{
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$ERROR_LOG"
     echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$LOG_FILE"
 }
 
 # Functions
-print_Header() {
+print_Header() 
+{
     local message="$1"
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}$message${NC}"
@@ -40,35 +43,42 @@ print_Header() {
     log "HEADER: $message"
 }
 
-print_Success() {
+print_Success() 
+{
     echo -e "${GREEN}✓ $1${NC}"
     log "SUCCESS: $1"
 }
 
-print_Error() {
+print_Error() 
+{
     echo -e "${RED}✗ $1${NC}"
     log_Error "$1"
 }
 
-print_Warning() {
+print_Warning() 
+{
     echo -e "${YELLOW}⚠ $1${NC}"
     log "WARNING: $1"
 }
 
-print_Info() {
+print_Info() 
+{
     echo -e "${BLUE}ℹ $1${NC}"
     log "INFO: $1"
 }
 
-print_Step() {
+print_Step() 
+{
     echo -e "${CYAN}➜ $1${NC}"
     log "STEP: $1"
 }
 
 # Prompt user for confirmation
-prompt_Continue() {
+prompt_Continue() 
+{
     local message="$1"
     local default="${2:-N}"
+    
     
     echo ""
     print_Step "$message"
@@ -79,8 +89,10 @@ prompt_Continue() {
         read -p "Continue? (y/N): " -n 1 -r
     fi
     
+
     echo
     
+
     if [ "$default" = "Y" ]; then
         [[ $REPLY =~ ^[Nn]$ ]] && return 1 || return 0
     else
@@ -88,16 +100,65 @@ prompt_Continue() {
     fi
 }
 
+# Check for immutable system (SteamOS, Bazzite, etc.)
+check_Immutable_System() {
+    local is_Immutable=false
+    
+
+    # Check for SteamOS
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        if [[ "$ID" == "steamos" ]] || [[ "$ID_LIKE" == *"steamos"* ]]; then
+            is_Immutable=true
+            print_Warning "SteamOS detected - immutable system"
+            log "SteamOS immutable system detected"
+        fi
+        
+        # Check for Bazzite
+        if [[ "$ID" == "bazzite" ]] || [[ "$NAME" == *"Bazzite"* ]]; then
+            is_Immutable=true
+            print_Warning "Bazzite detected - immutable system"
+            log "Bazzite immutable system detected"
+        fi
+    fi
+    
+
+    # Check for cachyos handheld version
+    if [ -f /usr/share/libalpm/hooks/steam-handheld.hook ]; then
+        . /usr/share/libalpm/hooks/steam-handheld.hook
+        if [[ "$TARGET" == "cachyos-handheld" ]]; then
+            is_Immutable=true
+            print_Warning "CachyOS Handheld detected - immutable system"
+            log "CachyOS Handheld immutable system detected"
+        fi
+    fi
+
+    if [ "$is_Immutable" = true ]; then
+        print_Warning "Immutable systems cannot install Wine via package managers"
+        print_Warning "Wine will be provided by your chosen Launcher automatically"
+        log "Skipping Wine installation for immutable system"
+        return 0  # Return success to indicate immutable system
+    fi
+    
+
+    return 1  # Return failure to indicate regular system
+}
+
+
+
 # Check if user is in sudoers
-check_Sudo() {
+check_Sudo() 
+{
     print_Header "Checking sudo privileges"
     
+
     if sudo -n true 2>/dev/null; then
         print_Success "Sudo privileges confirmed"
         log "User has sudo privileges"
         return 0
     fi
     
+
     # Try with password
     if sudo -v 2>/dev/null; then
         print_Success "Sudo privileges confirmed"
@@ -105,6 +166,7 @@ check_Sudo() {
         return 0
     fi
     
+
     # User is not in sudoers
     print_Error "Current user '$USER' is not in the sudoers group!"
     echo ""
@@ -138,7 +200,8 @@ print_Info "Error log: $ERROR_LOG"
 echo ""
 
 # Detect distribution
-detect_Distro() {
+detect_Distro() 
+{
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         DISTRO=$ID
@@ -157,19 +220,23 @@ detect_Distro() {
 
 
 # Enable contrib repository for Debian-based systems
-enable_Debian_Contrib() {
+enable_Debian_Contrib() 
+{
     local sources_file="$1"
     
     print_Step "Checking for contrib repository..."
     
+
     if grep -q "contrib" "$sources_file"; then
         print_Info "Contrib repository already enabled"
         log "Contrib already enabled in $sources_file"
         return 0
     fi
     
+
     print_Warning "Contrib repository not enabled (required for winetricks)"
     
+
     if prompt_Continue "Enable contrib repository in $sources_file?"; then
         print_Info "Enabling contrib repository..."
         sudo sed -r -i.backup 's/^deb(.*)$/deb\1 contrib/g' "$sources_file"
@@ -191,9 +258,11 @@ enable_Debian_Contrib() {
 }
 
 # Install dependencies for Ubuntu
-install_Ubuntu() {
+install_Ubuntu() 
+{
     print_Header "Installing dependencies for Ubuntu"
     
+
     # Determine codename
     if [ -n "$UBUNTU_CODENAME" ]; then
         CODENAME=$UBUNTU_CODENAME
@@ -204,6 +273,7 @@ install_Ubuntu() {
     print_Info "Using Ubuntu codename: $CODENAME"
     log "Ubuntu codename: $CODENAME"
     
+
     # Enable 32-bit architecture
     if ! prompt_Continue "Enable 32-bit architecture support? (Required for Wine)"; then
         print_Error "32-bit architecture is required. Exiting."
@@ -218,6 +288,7 @@ install_Ubuntu() {
         exit 1
     fi
     
+
     # Add WineHQ repository
     if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
         print_Info "Adding WineHQ repository..."
@@ -240,6 +311,7 @@ install_Ubuntu() {
         fi
     fi
     
+
     # Update package lists
     print_Info "Updating package lists..."
     if sudo apt update 2>&1 | tee -a "$LOG_FILE"; then
@@ -248,6 +320,7 @@ install_Ubuntu() {
         print_Warning "Some repository updates failed (non-critical)"
     fi
     
+
     # Install Wine
     if prompt_Continue "Install Wine Staging? (Recommended version with latest features)"; then
         print_Info "Installing Wine Staging and winetricks..."
@@ -269,13 +342,16 @@ install_Ubuntu() {
         read -n 1 -p "Press any key to continue..."
     fi
     
+
     print_Success "Ubuntu dependencies installed"
 }
 
 # Install dependencies for Debian
-install_Debian() {
+install_Debian() 
+{
     print_Header "Installing dependencies for Debian"
     
+
     CODENAME=$VERSION_CODENAME
     print_Info "Using Debian codename: $CODENAME"
     log "Debian codename: $CODENAME"
@@ -286,6 +362,7 @@ install_Debian() {
         exit 1
     fi
     
+
     print_Info "Enabling 32-bit architecture..."
     if sudo dpkg --add-architecture i386; then
         print_Success "32-bit architecture enabled"
@@ -294,6 +371,7 @@ install_Debian() {
         exit 1
     fi
     
+
     # Check and enable contrib repository
     print_Step "Checking for contrib repository (required for winetricks)..."
     
@@ -302,6 +380,7 @@ install_Debian() {
         enable_Debian_Contrib "/etc/apt/sources.list"
     fi
     
+
     # Install prerequisites
     if prompt_Continue "Install prerequisite packages? (curl, wget, gnupg)"; then
         print_Info "Installing prerequisites..."
@@ -312,6 +391,7 @@ install_Debian() {
         fi
     fi
     
+
     # Add WineHQ repository
     if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
         print_Info "Adding WineHQ repository..."
@@ -329,6 +409,7 @@ install_Debian() {
         print_Success "WineHQ repository added"
     fi
     
+
     # Update package lists
     print_Info "Updating package lists..."
     if sudo apt update 2>&1 | tee -a "$LOG_FILE"; then
@@ -337,6 +418,7 @@ install_Debian() {
         print_Warning "Some repository updates failed (non-critical)"
     fi
     
+
     # Install Wine
     if prompt_Continue "Install Wine Staging? (Recommended version with latest features)"; then
         print_Info "Installing Wine Staging..."
@@ -362,9 +444,11 @@ install_Debian() {
 }
 
 # Install dependencies for Arch
-install_Arch() {
+install_Arch() 
+{
     print_Header "Installing dependencies for Arch Linux"
     
+
     # Enable multilib
     print_Step "Checking multilib repository..."
     if ! grep -q "^\[multilib\]" /etc/pacman.conf; then
@@ -402,6 +486,7 @@ install_Arch() {
         fi
     fi
     
+
     # Install Wine
     if prompt_Continue "Install Wine and core dependencies?"; then
         print_Info "Installing Wine, wine-mono, wine-gecko, and winetricks..."
@@ -416,6 +501,7 @@ install_Arch() {
         read -n 1 -p "Press any key to continue..."
     fi
     
+
     # Install full dependencies
     if prompt_Continue "Install complete Wine dependencies? (Recommended for full compatibility)"; then
         print_Info "Installing complete dependency set..."
@@ -439,6 +525,7 @@ install_Arch() {
         fi
     fi
     
+
     # Install DXVK
     if command -v yay &> /dev/null || command -v paru &> /dev/null; then
         if prompt_Continue "Install DXVK from AUR? (Recommended for better performance)"; then
@@ -456,13 +543,16 @@ install_Arch() {
         print_Info "Install an AUR helper and run: yay -S dxvk-bin"
     fi
     
+
     print_Success "Arch Linux dependencies installed"
 }
 
 # Install dependencies for Fedora
-install_Fedora() {
+install_Fedora() 
+{
     print_Header "Installing dependencies for Fedora"
     
+
     # Check if Nobara
     if [ -f /usr/bin/nobara-sync ]; then
         print_Info "Nobara Linux detected"
@@ -486,6 +576,7 @@ install_Fedora() {
         fi
     fi
     
+
     # Install Wine
     if prompt_Continue "Install Wine and winetricks?"; then
         print_Info "Installing Wine and dependencies..."
@@ -502,6 +593,7 @@ install_Fedora() {
         read -n 1 -p "Press any key to continue..."
     fi
     
+
     # Install additional dependencies
     if prompt_Continue "Install additional 32-bit dependencies? (Recommended for compatibility)"; then
         print_Info "Installing 32-bit dependencies..."
@@ -525,9 +617,11 @@ install_Fedora() {
 }
 
 # Install dependencies for Solus
-install_Solus() {
+install_Solus() 
+{
     print_Header "Installing dependencies for Solus"
     
+
     # Update repository
     if prompt_Continue "Update repository database?"; then
         print_Info "Updating repository..."
@@ -538,6 +632,7 @@ install_Solus() {
         fi
     fi
 
+
     # Update System
     if prompt_Continue "Update your system?"; then
         print_Info "Updating System..."
@@ -546,6 +641,7 @@ install_Solus() {
         print_Success "System updated, continuing..."
     fi
     
+
     # Install Wine
     if prompt_Continue "Install Wine with 32-bit support and accessories?"; then
         print_Info "Installing Wine packages..."
@@ -565,13 +661,84 @@ install_Solus() {
     print_Success "Solus dependencies installed"
 }
 
+# Install dependencies for Immutable distros
+install_Immutable() 
+{
+    print_Warning "Distro is immutable - using Flatpak for installation"
+    
+    print_Header "Installing dependencies for Distro"
+    
+    log "Immutable distro installation method selected"
+    
+
+    # Install Heroic Games Launcher or Lutris
+    if prompt_Continue "Install a game launcher? (Required to run Plutonium)"; then
+        print_Step "Which launcher would you like to install?"
+        echo ""
+        echo "  1) Heroic Games Launcher (Recommended)"
+        echo "  2) Lutris"
+        echo "  3) Skip"
+        echo ""
+        read -p "Enter choice (1-3): " choice
+        
+        # Check user response for launcher choice
+        case $choice in
+            1)
+                print_Info "Installing Heroic Games Launcher via Flatpak..."
+                print_Warning "This may take several minutes..."
+                if flatpak install flathub com.heroicgameslauncher.hgl -y 2>&1 | tee -a "$LOG_FILE"; then
+                    print_Success "Heroic Games Launcher installed"
+                    log "Heroic Games Launcher installed successfully"
+                else
+                    print_Error "Failed to install Heroic Games Launcher"
+                    log_Error "Heroic Games Launcher installation failed"
+                    return 1
+                fi
+                ;;
+            2)
+                print_Info "Installing Lutris via Flatpak..."
+                print_Warning "This may take several minutes..."
+                if flatpak install flathub net.lutris.Lutris -y 2>&1 | tee -a "$LOG_FILE"; then
+                    print_Success "Lutris installed"
+                    log "Lutris installed successfully"
+                else
+                    print_Error "Failed to install Lutris"
+                    log_Error "Lutris installation failed"
+                    return 1
+                fi
+                ;;
+            3)
+                print_Warning "Skipping launcher installation"
+                log "User skipped launcher installation"
+                ;;
+            *)
+                print_Error "Invalid choice"
+                log_Error "Invalid launcher choice: $choice"
+                return 1
+                ;;
+        esac
+    else
+        print_Warning "Launcher installation skipped"
+        log "User declined launcher installation"
+    fi
+
+
+    print_Success "Distro dependencies installed"
+}
+
+
+
+
 # Setup Wine prefix
-setup_Wine_Prefix() {
+setup_Wine_Prefix() 
+{
     print_Info "LAST STEP!!!"
     print_Header "Setting up Wine prefix"
     
+
     WINE_PREFIX="$HOME/wine/plutonium"
     
+
     print_Info "Wine prefix will be created at: $WINE_PREFIX"
     
     if ! prompt_Continue "Create Wine prefix and install Windows components?"; then
@@ -579,11 +746,13 @@ setup_Wine_Prefix() {
         return 0
     fi
     
+
     # Create prefix directory
     print_Info "Creating Wine prefix directory..."
     mkdir -p "$WINE_PREFIX"
     log "Created Wine prefix directory: $WINE_PREFIX"
     
+
     # Check if winetricks is available
     if ! command -v winetricks &> /dev/null; then
         print_Error "winetricks not found! Cannot continue with prefix setup."
@@ -593,6 +762,7 @@ setup_Wine_Prefix() {
         exit 1
     fi
     
+
     # Install Windows components
     print_Step "Installing Windows components via winetricks..."
     print_Warning "This process may take 5-15 minutes depending on your internet connection"
@@ -600,6 +770,7 @@ setup_Wine_Prefix() {
     print_Info "Do not close any windows that appear - they will close automatically"
     echo ""
     
+
     if ! prompt_Continue "Begin Windows component installation?" "Y"; then
         print_Warning "Windows components installation skipped"
         log "User skipped Windows components installation"
@@ -620,6 +791,7 @@ setup_Wine_Prefix() {
         fi
     fi
     
+
     # Setup DXVK if available
     if command -v setup_dxvk &> /dev/null; then
         if prompt_Continue "Install DXVK (Vulkan-based DirectX)? (Recommended for performance)"; then
@@ -636,6 +808,7 @@ setup_Wine_Prefix() {
         log "setup_dxvk not available"
     fi
     
+
     # Set Windows version
     if prompt_Continue "Configure Wine prefix for Windows 10? (Recommended)" "Y"; then
         print_Info "Configuring Windows version to Windows 10..."
@@ -651,8 +824,12 @@ setup_Wine_Prefix() {
     log "Wine prefix setup completed successfully"
 }
 
-# Display installation summary
-show_Summary() {
+
+
+
+# Display installation summary for regular systems
+show_Summary() 
+{
     echo ""
     print_Header "Installation Summary"
     
@@ -667,7 +844,7 @@ show_Summary() {
     echo "Error log: $ERROR_LOG"
     echo ""
     
-    print_Info "Next Steps:"
+    print_Warning "Next Steps:"
     echo ""
     echo "1. Download Plutonium launcher from: https://plutonium.pw/"
     echo "   Place plutonium.exe in: $HOME/wine/plutonium/"
@@ -689,8 +866,48 @@ show_Summary() {
     log "Installation summary displayed"
 }
 
+
+
+
+# Display installation summary for immutable systems
+show_Summary_Immutable() 
+{
+    echo ""
+    print_Header "Installation Summary (Immutable System)"
+    
+    echo ""
+    print_Warning "Immutable OS detected (SteamOS, Bazzite, Handheld, etc.) - Wine managed by launcher"
+    echo ""
+    
+    echo "Installation log: $LOG_FILE"
+    echo "Error log: $ERROR_LOG"
+    echo ""
+    
+    print_Warning "Next Steps:"
+    echo ""
+    echo "1. Download Plutonium launcher from: https://plutonium.pw/"
+    echo "   Save plutonium.exe to your Downloads folder"
+    echo ""
+    echo "2. Open Heroic Games Launcher or Lutris"
+    echo ""
+    echo "3. Add Plutonium as a game:"
+    echo "   - Point to plutonium.exe"
+    echo "   - Launcher will handle Wine automatically"
+    echo "   - Set Wine version to GE-Proton-Latest"
+    echo ""
+    echo "4. Launch Plutonium and point it to your Steam game folder"
+    echo "   Usually: ~/.local/share/Steam/steamapps/common/[Game Name]"
+    echo ""
+    
+    log "Immutable system installation summary displayed"
+}
+
+
+
+
 # Error handler
-handle_Error() {
+handle_Error() 
+{
     local exit_code=$?
     local line_number=$1
     
@@ -705,11 +922,18 @@ handle_Error() {
     exit $exit_code
 }
 
+
+
+
 # Set error trap
 trap 'handle_Error $LINENO' ERR
 
+
+
+
 # Main installation flow
-main() {
+main() 
+{
     print_Header "Plutonium Linux Automated Installer v1.0"
     echo ""
     print_Info "This script will:"
@@ -719,7 +943,7 @@ main() {
     echo "  • Install Windows components via winetricks"
     echo ""
     print_Warning "Installation requires sudo privileges"
-    print_Warning "This script DOES NOT currently support the steam deck"
+    print_Warning "This script DOES NOT currently support all distributions"
     print_Warning "Accept any prompts from Wine to ensure compatibility with Plutonium"
     print_Info "You will be prompted before each major step"
     echo ""
@@ -729,15 +953,40 @@ main() {
         log "Installation cancelled by user at start"
         exit 0
     fi
-    
-    # Check sudo privileges
-    check_Sudo
-    
+
+
     # Detect distribution
     echo ""
     detect_Distro
-    
-    # Install based on distribution
+
+
+    # Check if immutable OS
+    echo ""
+    if check_Immutable_System; then
+        # Immutable system detected - skip Wine installation
+        case $DISTRO in
+            steamos|bazzite)
+                install_Immutable 
+                ;;
+            *)
+                print_Error "Immutable system detected but no specific handler available"
+                print_Info "Please use Wine/Proton through launchers (Heroic/Lutris/Steam)"
+                log_Error "Unsupported immutable distribution: $DISTRO"
+                exit 1
+                ;;
+        esac
+
+        print_Warning "Skipping Wine prefix setup (managed by launcher)"
+        show_Summary_Immutable
+        exit 0
+    fi
+
+
+    # Check sudo privileges (only for mutable systems)
+    check_Sudo
+
+
+    # Install based on distribution (for regular systems)
     echo ""
     case $DISTRO in
         ubuntu)
@@ -763,6 +1012,8 @@ main() {
             echo "  • Arch Linux (and derivatives)"
             echo "  • Fedora (and Nobara)"
             echo "  • Solus"
+            echo "  • SteamOS (immutable)"
+            echo "  • Bazzite (immutable)"
             log_Error "Unsupported distribution: $DISTRO"
             print_Info "If you would like your distro to be supported, please make an issue request on Github @ Astrocule"
             exit 1
@@ -787,8 +1038,11 @@ main() {
     echo ""
 
     echo ""
-    print_Info "Thank you for using my installer! You can contact me on Github @ Astrocule if you have any issues, concerns, or want to check out the source code and provide feedback!"
+    print_Info "Thank you for using my installer! You can contact me on Github @ Astrocule if you have any issues, concerns, or want to check out the source code and or provide feedback!"
     echo ""
 }
+
+
+
 # Run main function
 main "$@"
