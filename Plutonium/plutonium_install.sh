@@ -489,8 +489,8 @@ install_Arch()
 
     # Install Wine
     if prompt_Continue "Install Wine and core dependencies?"; then
-        print_Info "Installing Wine, wine-mono, wine-gecko, and winetricks..."
-        if sudo pacman -S --noconfirm wine wine-mono wine-gecko winetricks 2>&1 | tee -a "$LOG_FILE"; then
+        print_Info "Installing Wine(staging), wine-mono, wine-gecko, and winetricks..."
+        if sudo pacman -S --noconfirm wine-staging wine-mono wine-gecko winetricks 2>&1 | tee -a "$LOG_FILE"; then
             print_Success "Wine core packages installed"
         else
             print_Error "Failed to install Wine core packages"
@@ -756,8 +756,12 @@ setup_Wine_Prefix()
     # Check if winetricks is available
     if ! command -v winetricks &> /dev/null; then
         print_Error "winetricks not found! Cannot continue with prefix setup."
-        print_Info "Please install winetricks manually and run:"
-        echo "WINEPREFIX=$WINE_PREFIX winetricks -q --force d3dcompiler_47 d3dcompiler_43 d3dx11_42 d3dx11_43 gfw msasn1 corefonts vcrun2005 vcrun2012 vcrun2019 xact_x64 xact xinput"
+        print_Info "Please install winetricks and rerun the script, or manually run:"
+        echo "WINEPREFIX=$WINE_PREFIX winetricks -q --force d3dcompiler_47 d3dcompiler_43 \
+        d3dx11_42 d3dx11_43 msasn1 \
+        corefonts vcrun2005 vcrun2012 vcrun2019 \
+        xact_x64 xact xinput \
+        d3dx9 d3dx10"
         log_Error "winetricks not found - cannot setup prefix"
         exit 1
     fi
@@ -777,11 +781,12 @@ setup_Wine_Prefix()
     else
         print_Info "Installing: DirectX components, Visual C++ runtimes, fonts, audio, and input support..."
         
-        if WINEPREFIX="$WINE_PREFIX" winetricks -q --force \
+        if WINEPREFIX="$WINE_PREFIX" winetricks -q \
             d3dcompiler_47 d3dcompiler_43 \
-            d3dx11_42 d3dx11_43 gfw msasn1 \
+            d3dx11_42 d3dx11_43 msasn1 \
             corefonts vcrun2005 vcrun2012 vcrun2019 \
-            xact_x64 xact xinput 2>&1 | tee -a "$LOG_FILE"; then
+            xact_x64 xact xinput \
+            d3dx9 d3dx10 2>&1 | tee -a "$LOG_FILE"; then
             print_Success "Windows components installed successfully"
         else
             print_Warning "Some components may have failed to install"
@@ -810,18 +815,30 @@ setup_Wine_Prefix()
     
 
     # Set Windows version
-    if prompt_Continue "Configure Wine prefix for Windows 10? (Recommended)" "Y"; then
-        print_Info "Configuring Windows version to Windows 10..."
-        if WINEPREFIX="$WINE_PREFIX" winecfg -v win10 2>&1 | tee -a "$LOG_FILE"; then
-            print_Success "Windows 10 configuration applied"
-        else
-            print_Warning "Failed to set Windows version automatically"
-            print_Info "You can set it manually by running: WINEPREFIX=$WINE_PREFIX winecfg"
-        fi
+    print_Info "Configuring wine prefix version to Windows 10..."
+    read -n 1 -p "Press any key to continue..."
+    if WINEPREFIX="$WINE_PREFIX" winecfg -v win10 2>&1 | tee -a "$LOG_FILE"; then
+        print_Success "Windows 10 configuration applied"
+    else
+        print_Warning "Failed to set Windows version automatically"
+        print_Info "You can set it manually by running: WINEPREFIX=$WINE_PREFIX winecfg"
     fi
+
     
     print_Success "Wine prefix setup complete!"
     log "Wine prefix setup completed successfully"
+
+    # Set DLL overrides for controller input
+    print_Info "Setting DLL overrides for controller input (xinput)..."
+    read -n 1 -p "Press any key to continue..."
+
+    for v in "*xinput1_1" "*xinput1_2" "*xinput1_3" "*xinput9_1_0"; do
+    WINEPREFIX="$WINE_PREFIX" wine reg add \
+        "HKCU\\Software\\Wine\\DllOverrides" \
+      /v "$v" /t REG_SZ /d "builtin,native" /f 2>&1 | tee -a "$LOG_FILE" || exit 1
+    done
+
+    print_Success "DLL overrides for xinput set"
 }
 
 
