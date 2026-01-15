@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # Plutonium Linux Automated Installer
-# Supports: Ubuntu, Debian, Arch, Fedora, Solus
-# Version: 1.0
+# Supports: Ubuntu, Debian, Arch, Fedora, Solus, Mint, and Immutable Systems
+# Version: 1.0-1
 # Last Updated: January 2026
 #
 
@@ -345,6 +345,114 @@ install_Ubuntu()
 
     print_Success "Ubuntu dependencies installed"
 }
+
+# Install dependencies for Linux Mint
+install_Mint() {
+    print_Header "Installing dependencies for Linux Mint"
+    
+    # Detect Mint version and Ubuntu base
+    if [ -f /etc/linuxmint/info ]; then
+        MINT_VERSION=$(grep RELEASE /etc/linuxmint/info | cut -d'=' -f2)
+        MINT_CODENAME=$(grep CODENAME /etc/linuxmint/info | cut -d'=' -f2)
+        print_Info "Linux Mint version: $MINT_VERSION ($MINT_CODENAME)"
+        log "Linux Mint $MINT_VERSION detected (codename: $MINT_CODENAME)"
+    fi
+    
+    # Determine Ubuntu base codename
+    if [ -n "$UBUNTU_CODENAME" ]; then
+        BASE_CODENAME=$UBUNTU_CODENAME
+    else
+        # Mint version to Ubuntu base mapping
+        case $MINT_CODENAME in
+            wilma|virginia)
+                BASE_CODENAME="noble"  # Mint 22.x -> Ubuntu 24.04
+                ;;
+            virginia|vera|victoria|vanessa)
+                BASE_CODENAME="jammy"  # Mint 21.x -> Ubuntu 22.04
+                ;;
+            una|uma|ulyssa)
+                BASE_CODENAME="focal"  # Mint 20.x -> Ubuntu 20.04
+                ;;
+            *)
+                BASE_CODENAME="noble"  # Default to latest
+                print_warning "Unknown Mint codename, defaulting to noble (24.04 base)"
+                ;;
+        esac
+    fi
+    
+    print_Info "Using Ubuntu base codename: $BASE_CODENAME"
+    log "Ubuntu base codename: $BASE_CODENAME"
+    
+    # Enable 32-bit architecture
+    if ! prompt_Continue "Enable 32-bit architecture support? (Required for Wine)"; then
+        print_Error "32-bit architecture is required. Exiting."
+        exit 1
+    fi
+
+    print_Info "Enabling 32-bit architecture..."
+    if sudo dpkg --add-architecture i386; then
+        print_Success "32-bit architecture enabled"
+    else
+        print_Error "Failed to enable 32-bit architecture"
+        exit 1
+    fi
+    
+    # Add WineHQ repository
+    if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
+        print_Info "Adding WineHQ repository..."
+
+        sudo mkdir -pm755 /etc/apt/keyrings
+        
+        if wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key - 2>/dev/null; then
+            print_Success "WineHQ key added"
+        else
+            print_Error "Failed to add WineHQ key"
+            log_Error "Failed to download/add WineHQ GPG key"
+            exit 1
+        fi
+        
+        # Use Ubuntu base codename for WineHQ repository
+        if sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/${BASE_CODENAME}/winehq-${BASE_CODENAME}.sources 2>/dev/null; then
+            print_Success "WineHQ repository added (using Ubuntu ${BASE_CODENAME} base)"
+        else
+            print_Warning "Failed to add WineHQ repository - will try Mint repos instead"
+            log_Error "Failed to add WineHQ sources for $BASE_CODENAME"
+        fi
+    fi
+    
+    # Update package lists
+    print_Info "Updating package lists..."
+    if sudo apt update 2>&1 | tee -a "$LOG_FILE"; then
+        print_Success "Package lists updated"
+    else
+        print_Warning "Some repository updates failed (non-critical)"
+    fi
+    
+    # Install Wine
+    if prompt_Continue "Install Wine Staging? (Recommended version with latest features)"; then
+        print_Info "Installing Wine Staging and winetricks..."
+        print_Warning "This may take several minutes..."
+        
+        if sudo apt install --install-recommends winehq-staging winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "Wine Staging installed"
+        else
+            print_Warning "Wine Staging installation failed, trying wine package from Mint repos..."
+            if sudo apt install wine winetricks -y 2>&1 | tee -a "$LOG_FILE"; then
+                print_Success "Wine installed from Linux Mint repositories"
+            else
+                print_Error "Failed to install Wine"
+                exit 1
+            fi
+        fi
+    else
+        print_Info "Installation cancelled"
+        exit 0
+    fi
+    
+    print_Success "Linux Mint dependencies installed"
+}
+
+
 
 # Install dependencies for Debian
 install_Debian() 
@@ -722,6 +830,19 @@ install_Immutable()
         log "User declined launcher installation"
     fi
 
+    if prompt_Continue "Install Protontricks via flatpak?"; then
+        print_Info "Installing Protontricks via Flatpak..."
+        if flatpak install flathub com.github.Matoking.protontricks -y 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "Protontricks installed"
+            log "Protontricks installed successfully"
+        else
+            print_Error "Failed to install Protontricks"
+            log_Error "Protontricks installation failed"
+        fi
+    else
+        print_Warning "Protontricks installation skipped"
+        log "User declined Protontricks installation"
+    fi
 
     print_Success "Distro dependencies installed"
 }
@@ -809,7 +930,7 @@ setup_Wine_Prefix()
             fi
         fi
     else
-        print_Info "DXVK setup command not available (Heroic Launcher will handle this automatically)"
+        print_Info "DXVK setup command not available (Launcher should handle this automatically)"
         log "setup_dxvk not available"
     fi
     
@@ -874,7 +995,7 @@ show_Summary()
     echo "   - Add Game → Add Non-Steam Game"
     echo "   - Executable: $HOME/wine/plutonium/plutonium.exe"
     echo "   - Wine Prefix: $HOME/wine/plutonium"
-    echo "   - Wine Version: GE-Proton-Latest"
+    echo "   - Wine Version: GE-Proton-Latest (Recommended)"
     echo ""
     echo "4. Launch Plutonium and point it to your Steam game folder:"
     echo "   Usually: ~/.steam/steam/steamapps/common/[Game Name]"
@@ -914,6 +1035,12 @@ show_Summary_Immutable()
     echo ""
     echo "4. Launch Plutonium and point it to your Steam game folder"
     echo "   Usually: ~/.local/share/Steam/steamapps/common/[Game Name]"
+    echo ""
+
+    print_Warning "Note: Because of immutable systems, making a prefix is more challenging without changing system files that go against the immutable design. If you installed Protontricks, You can set up a prefix using Protontricks and install the required components manually."
+    echo ""
+    print_Info "Manual components to install via Protontricks:"
+    echo "  • d3dcompiler_47, d3dcompiler_43, d3dx11_42, d3dx11_43, msasn1, corefonts, vcrun2005, vcrun2012, vcrun2019, xact_x64, xact, xinput, d3dx9, d3dx10"
     echo ""
     
     log "Immutable system installation summary displayed"
@@ -1012,6 +1139,9 @@ main()
         debian)
             install_Debian
             ;;
+        linuxmint)
+            install_Mint
+            ;;
         arch|manjaro|endeavouros|cachyos)
             install_Arch
             ;;
@@ -1026,11 +1156,13 @@ main()
             print_Info "Supported distributions:"
             echo "  • Ubuntu"
             echo "  • Debian"
+            echo "  • Linux Mint"
             echo "  • Arch Linux (and derivatives)"
             echo "  • Fedora (and Nobara)"
             echo "  • Solus"
             echo "  • SteamOS (immutable)"
             echo "  • Bazzite (immutable)"
+            echo "  • CachyOS Handheld (immutable)"
             log_Error "Unsupported distribution: $DISTRO"
             print_Info "If you would like your distro to be supported, please make an issue request on Github @ Astrocule"
             exit 1
@@ -1058,8 +1190,6 @@ main()
     print_Info "Thank you for using my installer! You can contact me on Github @ Astrocule if you have any issues, concerns, or want to check out the source code and or provide feedback!"
     echo ""
 }
-
-
 
 # Run main function
 main "$@"
