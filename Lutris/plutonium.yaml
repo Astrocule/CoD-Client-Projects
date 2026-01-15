@@ -7,7 +7,7 @@ runner: wine
 steamid: 202970
 version: Plutonium
 year: 2012
-notes: it is highly suggested to use the NTSYNC environment variable, it will highly improve performance in all games. If you aren't familiar with it, reddit and youtube have some guides.
+notes: it is highly suggested to use the NTSYNC and Wayland environment variable, it will highly improve performance in all games. If you aren't familiar with it, reddit and youtube have some guides.
 
 script:
   files:
