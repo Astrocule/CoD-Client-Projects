@@ -1,0 +1,147 @@
+name: "Call of Duty: Black Ops II: Plutonium"
+game_slug: call-of-duty-black-ops-ii
+gogslug: ''
+humblestoreid: ''
+slug: call-of-duty-black-ops-ii-plutonium
+runner: wine
+steamid: 202970
+version: Plutonium
+year: 2012
+notes: it is highly suggested to use the NTSYNC environment variable, it will highly improve performance in all games. If you aren't familiar with it, reddit and youtube have some guides.
+
+script:
+  files:
+  - plutonium: https://cdn.plutonium.pw/updater/plutonium.exe
+
+  game:
+    name: Plutonium
+    arch: win64
+    exe: drive_c/Plutonium/plutonium.exe
+    prefix: $GAMEDIR
+
+  wine:
+    dxvk: true
+    esync: false
+    fsync: false
+
+  installer:
+  - input_menu:
+      description: "Enable NTSYNC for improved performance? (Requires kernel 6.10+, older distros may not support this.)"
+      id: NTSYNC
+      options:
+      - "1": "Yes - Enable NTSYNC"
+      - "0": "No - Disable NTSYNC"
+      preselect: "0"
+
+  - input_menu:
+      description: "Are you using a Wayland session?"
+      id: WAYLAND
+      options:
+      - "1": "Yes - Using Wayland"
+      - "0": "No - Using X11"
+      preselect: "0"
+
+  - task:
+      name: winetricks
+      description: Install required d3d dependencies via winetricks
+      app: d3dcompiler_47 d3dcompiler_43
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Install required msasn1/corefonts dependencies via winetricks
+      app: msasn1 corefonts
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Install required vcrun/audio/input dependencies via winetricks
+      app: vcrun2005 vcrun2012 vcrun2019 xact_x64 xact xinput
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Setting Windows version to Windows 10
+      app: win10
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Enabling subpixel font smoothing for RGB LCDs
+      app: fontsmooth=rgb
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Letting wine detect memory size for GPU
+      app: videomemorysize=default
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Set graphics driver to system default
+      app: graphics=default
+      prefix: $GAMEDIR
+
+  - task:
+      name: winetricks
+      description: Allow grabbing fullscreen windows
+      app: grabfullscreen=y
+      prefix: $GAMEDIR
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      description: Adding DLL overrides for xinput
+      path: HKEY_CURRENT_USER\Software\Wine\DllOverrides
+      key: '*xinput1_1'
+      value: builtin,native
+      type: REG_SZ
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      description: Adding DLL overrides for xinput
+      path: HKEY_CURRENT_USER\Software\Wine\DllOverrides
+      key: '*xinput1_2'
+      value: builtin,native
+      type: REG_SZ
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      description: Adding DLL overrides for xinput
+      path: HKEY_CURRENT_USER\Software\Wine\DllOverrides
+      key: '*xinput1_3'
+      value: builtin,native
+      type: REG_SZ
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      description: Adding DLL overrides for xinput
+      path: HKEY_CURRENT_USER\Software\Wine\DllOverrides
+      key: '*xinput9_1_0'
+      value: builtin,native
+      type: REG_SZ
+
+  - merge:
+      src: plutonium
+      dst: $GAMEDIR/drive_c/Plutonium
+
+  system:
+    env:
+      DXVK_ASYNC: 0
+      DXVK_STATE_CACHE: 1
+      DXVK_STATE_CACHE_PATH: $GAMEDIR
+      __GL_SHADER_DISK_CACHE: 1
+      __GL_SHADER_DISK_CACHE_PATH: $GAMEDIR
+      __GL_SHADER_DISK_CACHE_SKIP_CLEANUP: 1
+      __GL_THREADED_OPTIMIZATIONS: 1
+      PROTON_NO_ESYNC: 1
+      PROTON_NO_FSYNC: 1
+      PROTON_USE_NTSYNC: $INPUT_NTSYNC
+      PROTON_ENABLE_WAYLAND: $INPUT_WAYLAND
+      PROTON_PRIORITY_HIGH: 1
+      PROTON_USE_WOW64: 1
+      STAGING_SHARED_MEMORY: 1
