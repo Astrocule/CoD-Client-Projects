@@ -7,9 +7,10 @@
 - Arch Linux (including Manjaro, EndeavourOS, CachyOS)
 - Fedora 40+ (including Nobara)
 - Solus
+- SteamOS/Bazzite/CachyOS-Handheld
 
 ## System Requirements
-- 64-bit Linux system
+- Linux system
 - Active internet connection
 - User account with sudo privileges
 - At least 5GB free disk space for packages, plutonium, and wine prefix
@@ -17,16 +18,17 @@
 
 ## Not Supported/Unknown Status
 
-- Bazzite
-- SteamOS
-- Really anything else not mentioned
+- Really anything not mentioned
 
 
 ## Quick Start
 
 ### Download and Run
-Install the plutonium_installer.sh script from the [github repository](https://github.com/Astrocule/CoD-Client-Projects/blob/main/Plutonium/plutonium_install.sh) (Download arrow, top right)
+
 ```bash
+# Install script
+wget https://github.com/Astrocule/CoD-Client-Projects/blob/main/Plutonium/plutonium_install.sh
+
 # Make it executable
 chmod +x plutonium_install.sh
 
@@ -112,8 +114,8 @@ flatpak install flathub com.heroicgameslauncher.hgl
 
 ### Comprehensive Logging
 Two log files are created in the script directory:
-- `plutonium_install_YYYYMMDD_HHMMSS.log` - Complete installation log
-- `plutonium_errors_YYYYMMDD_HHMMSS.log` - Error-specific log
+- `plutonium_install_YYYY-MM-DD_HH.MM.AM/PM.log` - Complete installation log
+- `plutonium_errors_YYYY-MM-DD_HH.MM.AM/PM.log` - Error-specific log
 
 Example log entry:
 ```
@@ -122,26 +124,6 @@ Example log entry:
 [2026-01-03 14:25:33] WARNING: Some optional dependencies failed
 ```
 
-# Log Files
-
-### Installation Log
-Contains complete record of:
-- All commands executed
-- Package installations
-- Success/failure status
-- User choices
-- Timestamps for every action
-
-Location: `plutonium_install_YYYYMMDD_HHMMSS.log`
-
-### Error Log
-Contains only:
-- Error messages
-- Failed operations
-- Exception details
-- Troubleshooting information
-
-Location: `plutonium_errors_YYYYMMDD_HHMMSS.log`
 
 # Troubleshooting
 
@@ -313,7 +295,6 @@ rm plutonium_install_*.log plutonium_errors_*.log
 
 ### Debian
 - Checks and enables contrib repository for winetricks
-- Creates backup of sources.list before modification
 - Supports Bookworm (12) and Trixie (13)
 - Falls back to Debian Wine if WineHQ unavailable
 
