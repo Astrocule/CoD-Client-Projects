@@ -21,6 +21,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Set version info
+VERSION="1.0-1"
+
 # Logging function
 log() 
 {
@@ -133,6 +136,7 @@ check_Immutable_System() {
         fi
     fi
 
+    # Return based on detection
     if [ "$is_Immutable" = true ]; then
         print_Warning "Immutable systems cannot install Wine via package managers"
         print_Warning "Wine will be provided by your chosen Launcher automatically"
@@ -151,7 +155,7 @@ check_Sudo()
 {
     print_Header "Checking sudo privileges"
     
-
+    # Check if user already has sudo privileges
     if sudo -n true 2>/dev/null; then
         print_Success "Sudo privileges confirmed"
         log "User has sudo privileges"
@@ -226,7 +230,7 @@ enable_Debian_Contrib()
     
     print_Step "Checking for contrib repository..."
     
-
+    # Check if contrib is already enabled
     if grep -q "contrib" "$sources_file"; then
         print_Info "Contrib repository already enabled"
         log "Contrib already enabled in $sources_file"
@@ -236,11 +240,12 @@ enable_Debian_Contrib()
 
     print_Warning "Contrib repository not enabled (required for winetricks)"
     
-
+    # Prompt to enable contrib
     if prompt_Continue "Enable contrib repository in $sources_file?"; then
         print_Info "Enabling contrib repository..."
         sudo sed -r -i.backup 's/^deb(.*)$/deb\1 contrib/g' "$sources_file"
         
+        # Verify change
         if [ $? -eq 0 ]; then
             print_Success "Contrib repository enabled (backup saved as ${sources_file}.backup)"
             log "Successfully enabled contrib in $sources_file"
@@ -303,6 +308,7 @@ install_Ubuntu()
             exit 1
         fi
         
+        # Add WineHQ repository for the detected codename
         if sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/${CODENAME}/winehq-${CODENAME}.sources 2>/dev/null; then
             print_Success "WineHQ repository added"
         else
@@ -856,7 +862,7 @@ setup_Wine_Prefix()
     print_Info "LAST STEP!!!"
     print_Header "Setting up Wine prefix"
     
-
+    # Define Wine prefix location in home directory under ran user
     WINE_PREFIX="$HOME/wine/plutonium"
     
 
@@ -902,6 +908,7 @@ setup_Wine_Prefix()
     else
         print_Info "Installing: DirectX components, Visual C++ runtimes, fonts, audio, and input support..."
         
+        # Set wineprefix to previous defined location and install components
         if WINEPREFIX="$WINE_PREFIX" winetricks -q \
             d3dcompiler_47 d3dcompiler_43 \
             d3dx11_42 d3dx11_43 msasn1 \
@@ -953,6 +960,7 @@ setup_Wine_Prefix()
     print_Info "Setting DLL overrides for controller input (xinput)..."
     read -n 1 -p "Press any key to continue..."
 
+    # Setting DLL overrides using windows registry keys
     for v in "*xinput1_1" "*xinput1_2" "*xinput1_3" "*xinput9_1_0"; do
     WINEPREFIX="$WINE_PREFIX" wine reg add \
         "HKCU\\Software\\Wine\\DllOverrides" \
@@ -1078,7 +1086,7 @@ trap 'handle_Error $LINENO' ERR
 # Main installation flow
 main() 
 {
-    print_Header "Plutonium Linux Automated Installer v1.0"
+    print_Header "Plutonium Linux Automated Installer $VERSION"
     echo ""
     print_Info "This script will:"
     echo "  • Detect your Linux distribution"
