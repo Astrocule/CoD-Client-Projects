@@ -1,8 +1,9 @@
-# Plutonium Automated Installer v1.0
+# Plutonium Automated Installer v1.0-1
 
 ## Supported Distributions
 
 - Ubuntu 22.04+ (Jammy, Noble)
+- Mint 20.0+ (Noble, Jammy, Focal)
 - Debian 11+ (Bullseye, Bookworm, Trixie)
 - Arch Linux (including Manjaro, EndeavourOS, CachyOS)
 - Fedora 40+ (including Nobara)
@@ -95,20 +96,20 @@ These options will HEAVILY boost performance on these CoD titles, I highly recom
 Some launchers may not respect certain name schemes (~/wine/plutonium, /home/$USER/wine/plutonium, etc.), if you realize something isn't working, try using different schemas.
 
 ```
-DXVK_ASYNC: 0
-DXVK_STATE_CACHE: 1
-DXVK_STATE_CACHE_PATH: /home/$USER/wine/plutonium
-__GL_SHADER_DISK_CACHE: 1
-__GL_SHADER_DISK_CACHE_PATH: /home/$USER/wine/plutonium
-__GL_SHADER_DISK_CACHE_SKIP_CLEANUP: 1
-__GL_THREADED_OPTIMIZATIONS: 1
-PROTON_NO_ESYNC: 1
-PROTON_NO_FSYNC: 1
-PROTON_USE_NTSYNC: 1
-PROTON_ENABLE_WAYLAND: 1
-PROTON_PRIORITY_HIGH: 1
-PROTON_USE_WOW64: 1
-STAGING_SHARED_MEMORY: 1
+DXVK_ASYNC=0
+DXVK_STATE_CACHE=1
+DXVK_STATE_CACHE_PATH=/home/$USER/wine/plutonium
+__GL_SHADER_DISK_CACHE=1
+__GL_SHADER_DISK_CACHE_PATH=/home/$USER/wine/plutonium
+__GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
+__GL_THREADED_OPTIMIZATIONS=1
+PROTON_NO_ESYNC=1
+PROTON_NO_FSYNC=1
+PROTON_USE_NTSYNC=1
+PROTON_ENABLE_WAYLAND=1
+PROTON_PRIORITY_HIGH=1
+PROTON_USE_WOW64=1
+STAGING_SHARED_MEMORY=1
 ```
 > ! Note
 >
