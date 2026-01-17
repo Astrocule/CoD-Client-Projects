@@ -187,14 +187,6 @@ check_Sudo()
     exit 1
 }
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then 
-    print_Error "Do not run this script as root!"
-    print_Info "Run as a normal user. You will be prompted for sudo when needed."
-    log_Error "Script run as root - exiting"
-    exit 1
-fi
-
 # Initialize log files
 echo "Plutonium Linux Installer - Log started at $(date)" > "$LOG_FILE"
 echo "Plutonium Linux Installer - Error Log started at $(date)" > "$ERROR_LOG"
@@ -202,6 +194,14 @@ echo "Plutonium Linux Installer - Error Log started at $(date)" > "$ERROR_LOG"
 print_Info "Installation log: $LOG_FILE"
 print_Info "Error log: $ERROR_LOG"
 echo ""
+
+# Check if running as root
+if [ "$EUID" -eq 0 ]; then 
+    print_Error "Do not run this script as root!"
+    print_Info "Run as a normal user. You will be prompted for sudo when needed."
+    log_Error "Script run as root - exiting"
+    exit 1
+fi
 
 # Detect distribution
 detect_Distro() 
@@ -231,7 +231,7 @@ enable_Debian_Contrib()
     print_Step "Checking for contrib repository..."
     
     # Check if contrib is already enabled
-    if grep -q "contrib" "$sources_file"; then
+    if grep -Eq '^[[:space:]]*deb .* contrib( |$)' "$sources_file"; then
         print_Info "Contrib repository already enabled"
         log "Contrib already enabled in $sources_file"
         return 0
@@ -243,8 +243,18 @@ enable_Debian_Contrib()
     # Prompt to enable contrib
     if prompt_Continue "Enable contrib repository in $sources_file?"; then
         print_Info "Enabling contrib repository..."
-        sudo sed -r -i.backup 's/^deb(.*)$/deb\1 contrib/g' "$sources_file"
+
+        # Backup original sources file
+        sudo cp "$sources_file" "${sources_file}.backup"
         
+        sudo sed -Ei '
+            /^[[:space:]]*deb / {
+                / contrib( |$)/! {
+                    s/( main( |$))/\1contrib\2/
+                }
+            }
+        ' "$sources_file"
+
         # Verify change
         if [ $? -eq 0 ]; then
             print_Success "Contrib repository enabled (backup saved as ${sources_file}.backup)"
@@ -475,9 +485,10 @@ install_Debian()
         print_Error "32-bit architecture is required. Exiting."
         exit 1
     fi
-    
 
     print_Info "Enabling 32-bit architecture..."
+    echo ""
+
     if sudo dpkg --add-architecture i386; then
         print_Success "32-bit architecture enabled"
     else
@@ -498,7 +509,7 @@ install_Debian()
     # Install prerequisites
     if prompt_Continue "Install prerequisite packages? (curl, wget, gnupg)"; then
         print_Info "Installing prerequisites..."
-        if sudo apt update && sudo apt install -y apt-transport-https curl gnupg wget 2>&1 | tee -a "$LOG_FILE"; then
+        if sudo apt update && sudo apt install -y curl gnupg wget 2>&1 | tee -a "$LOG_FILE"; then
             print_Success "Prerequisites installed"
         else
             print_Warning "Some prerequisites failed to install (may continue)"
@@ -554,6 +565,22 @@ install_Debian()
         read -n 1 -p "Press any key to continue..."
     fi
     
+    # Prompt user to update system
+    if prompt_Continue "Update system packages? (Optional)"; then
+        print_Info "Updating system..."
+        echo ""
+
+        if sudo apt upgrade -y 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "System updated"
+            echo ""
+            log "System packages upgraded"
+        else
+            print_Warning "System update had some issues (may continue)"
+            echo ""
+        fi
+    fi
+
+
     print_Success "Debian dependencies installed"
 }
 
@@ -666,37 +693,82 @@ install_Fedora()
 {
     print_Header "Installing dependencies for Fedora"
     
+    # Detect Fedora Version
+    FEDORA_VERSION=$VERSION_ID
+    print_Info "Fedora Version: $FEDORA_VERSION"
+    log "Fedora version detected: $FEDORA_VERSION"
 
     # Check if Nobara
     if [ -f /usr/bin/nobara-sync ]; then
         print_Info "Nobara Linux detected"
+        print_Warning "Nobara comes with wine pre-installed"
         
         if prompt_Continue "Update system with nobara-sync?"; then
             print_Info "Running nobara-sync..."
-            if sudo nobara-sync 2>&1 | tee -a "$LOG_FILE"; then
+            if sudo nobara-sync cli 2>&1 | tee -a "$LOG_FILE"; then
                 print_Success "System updated"
             else
                 print_Warning "System update had issues (may continue)"
             fi
         fi
-    else
-        if prompt_Continue "Update system packages? (Recommended)"; then
-            print_Info "Updating system..."
-            if sudo dnf upgrade -y 2>&1 | tee -a "$LOG_FILE"; then
-                print_Success "System updated"
-            else
-                print_Warning "System update had issues (may continue)"
+
+        # Check for wine (Nobara)
+        if command -v wine &> /dev/null; then
+            print_Success "Wine already installed on Nobara"
+            print_Info "Wine version $(wine --version)"
+            log "Wine already installed on system"
+        else
+            print_Warning "Wine not found on Nobara (unexpected, broken system?)"
+            if prompt_Continue "Install Wine?"; then
+                print_Info "Installing Wine for Nobara"
+                sudo dnf install -y wine winetricks 2>&1 | tee -a "$LOG_FILE"
             fi
+        fi
+
+        print_Success "Nobara dependencies verified"
+        return 0
+    fi
+
+
+    # WoW 64-bit support for Fedora 40+
+    if [ "$FEDORA_VERSION" -ge 40 ]; then
+        print_Info "Checking for WoW 64-bit support..."
+        log "Fedora 40+ with WoW 64-bit architecture detected"
+    fi
+
+    # Update system packages (Fedora Only)
+    if prompt_Continue "Update system packages? (Recommended)"; then
+        print_Info "Updating system..."
+        if sudo dnf upgrade -y 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "System updated"
+        else
+            print_Warning "System update had issues (may continue)"
         fi
     fi
-    
+
+    # Add WineHQ repository
+    if prompt_Continue "Add WineHQ official repository? (Recommended for latest Wine)"; then
+        print_Info "Adding WineHQ repository for Fedora $FEDORA_VERSION..."
+
+        # Quick check to ensure the repo file URL is correct
+        local repo_url="https://dl.winehq.org/wine-builds/fedora/${FEDORA_VERSION}/winehq.repo"
+
+        if sudo dnf config-manager addrepo --from-repofile="$repo_url" 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "WineHQ repository added"
+        else
+            print_Warning "Failed to add WineHQ repository for Fedora $FEDORA_VERSION"
+            print_Info "Will try standard Fedora Wine package instead"
+            log_Error "Failed to add WineHQ repository"
+        fi
+    fi
+
 
     # Install Wine
     if prompt_Continue "Install Wine and winetricks?"; then
         print_Info "Installing Wine and dependencies..."
         print_Warning "This may take several minutes..."
         
-        if sudo dnf install -y wine winetricks 2>&1 | tee -a "$LOG_FILE"; then
+        if sudo dnf install -y --allowerasing wine-common winetricks 2>&1 | tee -a "$LOG_FILE"; then
             print_Success "Wine installed"
         else
             print_Error "Failed to install Wine"
@@ -864,11 +936,31 @@ setup_Wine_Prefix()
     
     # Define Wine prefix location in home directory under ran user
     WINE_PREFIX="$HOME/wine/plutonium"
+
+    # Supress output to avoid clogging up terminal
+    export WINEDEBUG=-all
     
+    # Check if prefix already exists
+    if [ -d "$WINE_PREFIX" ] && [ -f "$WINE_PREFIX/system.reg" ]; then
+        print_Warning "Wine prefix already exists at: $WINE_PREFIX"
+
+        if prompt_Continue "Recreate Wine prefix? (This will delete existing prefix)"; then
+            print_Info "Removing existing Wine prefix..."
+            echo ""
+            log "User opted to recreate Wine prefix"
+            rm -rf "$WINE_PREFIX"
+        else
+            print_Info "Using existing Wine prefix"
+            echo ""
+            log "User opted to use existing Wine prefix"
+        fi
+    fi
+
 
     print_Info "Wine prefix will be created at: $WINE_PREFIX"
+    echo ""
     
-    if ! prompt_Continue "Create Wine prefix and install Windows components?"; then
+    if ! prompt_Continue "Create/Update Wine prefix and install Windows components?"; then
         print_Warning "Wine prefix setup skipped, Plutonium may have degraded performance or issues."
         return 0
     fi
@@ -876,8 +968,14 @@ setup_Wine_Prefix()
 
     # Create prefix directory
     print_Info "Creating Wine prefix directory..."
-    mkdir -p "$WINE_PREFIX"
-    log "Created Wine prefix directory: $WINE_PREFIX"
+    if mkdir -p "$WINE_PREFIX"; then
+        print_Success "Wine prefix directory created"
+        log "Created Wine prefix directory: $WINE_PREFIX"
+    else
+        print_Error "Failed to create Wine prefix directory at $WINE_PREFIX"
+        log_Error "Failed to create directory: $WINE_PREFIX"
+        exit 1
+    fi
     
 
     # Check if winetricks is available
@@ -945,6 +1043,8 @@ setup_Wine_Prefix()
     # Set Windows version
     print_Info "Configuring wine prefix version to Windows 10..."
     read -n 1 -p "Press any key to continue..."
+    echo ""
+
     if WINEPREFIX="$WINE_PREFIX" winecfg -v win10 2>&1 | tee -a "$LOG_FILE"; then
         print_Success "Windows 10 configuration applied"
     else
@@ -957,17 +1057,33 @@ setup_Wine_Prefix()
     log "Wine prefix setup completed successfully"
 
     # Set DLL overrides for controller input
-    print_Info "Setting DLL overrides for controller input (xinput)..."
+    print_Info "Setting DLL overrides for controller input (may take a few seconds)..."
     read -n 1 -p "Press any key to continue..."
+    echo ""
 
     # Setting DLL overrides using windows registry keys
-    for v in "*xinput1_1" "*xinput1_2" "*xinput1_3" "*xinput9_1_0"; do
-    WINEPREFIX="$WINE_PREFIX" wine reg add \
-        "HKCU\\Software\\Wine\\DllOverrides" \
-      /v "$v" /t REG_SZ /d "builtin,native" /f 2>&1 | tee -a "$LOG_FILE" || exit 1
+    local xinput_versions=("xinput1_1" "xinput1_2" "xinput1_3" "xinput9_1_0")
+    local failed=0
+
+    for v in "${xinput_versions[@]}"; do
+        if WINEPREFIX="$WINE_PREFIX" wine reg add \
+            "HKCU\\Software\\Wine\\DllOverrides" \
+            /v "$v" /t REG_SZ /d "builtin,native" /f 2>&1 | tee -a "$LOG_FILE"; then
+            print_Success "Set DLL override for $v"
+        else
+            print_Warning "Failed to set DLL override for $v"
+            ((failed++))
+        fi
     done
 
-    print_Success "DLL overrides for xinput set"
+    if [ $failed -eq 0 ]; then
+        print_Success "All DLL overrides set successfully"
+        log "DLL overrides for xinput set successfully"
+    else
+        print_Warning "Some DLL overrides failed to set ($failed/${#xinput_versions[@]})"
+        print_Info "Controllers still may work without these overrides, test and retry manually if needed"
+        log_Error "($failed/${#xinput_versions[@]}) DLL overrides failed"
+    fi
 }
 
 
