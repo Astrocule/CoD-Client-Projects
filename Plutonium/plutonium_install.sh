@@ -24,13 +24,13 @@ NC='\033[0m' # No Color
 # Logging function
 log() 
 {
-    echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] $1" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d_%I.%M%p')] $1" >> "$LOG_FILE"
 }
 
 log_Error() 
 {
-    echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$ERROR_LOG"
-    echo "[$(date '+%Y-%m-%d_%I.%M-%S%p')] ERROR: $1" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d_%I.%M%p')] ERROR: $1" >> "$ERROR_LOG"
+    echo "[$(date '+%Y-%m-%d_%I.%M%p')] ERROR: $1" >> "$LOG_FILE"
 }
 
 # Functions
