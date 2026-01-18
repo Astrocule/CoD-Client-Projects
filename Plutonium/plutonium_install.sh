@@ -220,7 +220,26 @@ detect_Distro()
     fi
 }
 
-
+# Check available disk space
+check_Disk_Space() 
+{
+    local required_space=5242880  # 5GB in KB
+    local available_space=$(df "$HOME" | awk 'NR==2 {print $4}')
+    
+    print_Step "Checking available disk space..."
+    
+    if [ "$available_space" -lt "$required_space" ]; then
+        print_Warning "Low disk space detected"
+        print_Warning "Available: $((available_space / 1024 / 1024))GB | Required: 5GB"
+        if ! prompt_Continue "Continue anyway? (Installation may fail)"; then
+            print_Info "Installation cancelled due to low disk space"
+            exit 1
+        fi
+    else
+        print_Success "Sufficient disk space available ($((available_space / 1024 / 1024))GB)"
+        log_Info "Disk space check passed"
+    fi
+}
 
 # Enable contrib repository for Debian-based systems
 enable_Debian_Contrib() 
@@ -1181,6 +1200,9 @@ main()
     echo ""
     detect_Distro
 
+    # Check disk space
+    echo ""
+    check_Disk_Space
 
     # Check if immutable OS
     echo ""
